@@ -104,6 +104,55 @@
             text-decoration: underline;
         }
 
+        .input-row {
+            display: none;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .input-row.visible {
+            display: flex;
+        }
+
+        #add-link.hidden {
+            display: none;
+        }
+
+        #resume-input {
+            font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+            font-size: 15px;
+            color: inherit;
+            background: transparent;
+            border: none;
+            border-bottom: 1px solid currentColor;
+            padding: 4px 0;
+            width: 300px;
+            outline: none;
+        }
+
+        #resume-input::placeholder {
+            color: inherit;
+            opacity: 0.5;
+        }
+
+        #add-button {
+            font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+            font-size: 14px;
+            font-weight: 500;
+            color: inherit;
+            background: transparent;
+            border: 1px solid currentColor;
+            border-radius: 6px;
+            padding: 6px 12px;
+            cursor: pointer;
+            transition: opacity 0.15s;
+            opacity: 0.7;
+        }
+
+        #add-button:hover {
+            opacity: 1;
+        }
+
         @media (max-width: 600px) {
             .container {
                 padding: 0 24px 40px 24px;
@@ -112,6 +161,10 @@
             .theme-toggle {
                 top: 24px;
                 left: 24px;
+            }
+
+            #add-button {
+                display: none;
             }
         }
     </style>
@@ -140,6 +193,10 @@
 
             <div class="cta">
                 <a href="#" id="add-link">Add to my resume</a>
+                <div class="input-row" id="input-container">
+                    <input type="text" id="resume-input" placeholder="Add to my resume">
+                    <button type="button" id="add-button">Add</button>
+                </div>
             </div>
         </div>
     </div>
@@ -155,7 +212,8 @@
             "19th Place, Under-30 Age Bracket, United Way Palm Beach Turkey Trot, 2024",
             "Round of 16, \"Wheel of Fortune\" Auditions, 2023",
             "Honorable Mention, Down East Magazine \"Reader's Choice\" for Best Non-Professional Sunset Photo, 2018",
-            "Shortlisted, Johnson County Richard Kind Lookalike Contest, 2008",
+            "Shortlisted, Washington Square Adam Driver Lookalike Contest, 2021",
+            "Voted \"Least Likely To Commit A Crime,\" Pembroke Hill Senior Yearbook, 2015",
             "Most Valuable Player, Maine Sea Dogs AAA Baseball Team, 2006",
             "Bronze Medalist, Dallas State Fair of Texas (Pickled Okra Division), 2015",
             "Honorable Mention, Brooklyn Bagel Festival, Amateur Division, 2022",
@@ -193,18 +251,45 @@
 
         // Add to resume functionality
         const addLink = document.getElementById('add-link');
+        const inputContainer = document.getElementById('input-container');
+        const resumeInput = document.getElementById('resume-input');
+        const addButton = document.getElementById('add-button');
         const previouslySection = document.querySelectorAll('.section')[1];
+
+        function addItem(text) {
+            const newItem = document.createElement('div');
+            newItem.className = 'item';
+            newItem.textContent = text;
+            previouslySection.appendChild(newItem);
+        }
+
+        function addCustomItem() {
+            if (resumeInput.value.trim()) {
+                addItem(resumeInput.value.trim());
+                resumeInput.value = '';
+                resumeInput.focus();
+            }
+        }
 
         addLink.addEventListener('click', (e) => {
             e.preventDefault();
-            if (currentIndex < shuffledItems.length) {
-                const newItem = document.createElement('div');
-                newItem.className = 'item';
-                newItem.textContent = shuffledItems[currentIndex];
-                previouslySection.appendChild(newItem);
+            if (currentIndex < 10) {
+                addItem(shuffledItems[currentIndex]);
                 currentIndex++;
+            } else {
+                addLink.classList.add('hidden');
+                inputContainer.classList.add('visible');
+                resumeInput.focus();
             }
         });
+
+        resumeInput.addEventListener('keydown', (e) => {
+            if (e.key === 'Enter') {
+                addCustomItem();
+            }
+        });
+
+        addButton.addEventListener('click', addCustomItem);
     </script>
 </body>
 </html>
