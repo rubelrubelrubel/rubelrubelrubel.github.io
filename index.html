@@ -50,7 +50,7 @@
 
         .content {
             margin-bottom: 0;
-            padding-bottom: 140px;
+            padding-bottom: 120px;
         }
 
         .footer {
@@ -284,6 +284,7 @@
                 newItem.className = 'item';
                 newItem.textContent = text;
                 previouslySection.appendChild(newItem);
+                window.scrollTo(0, document.body.scrollHeight);
             }
 
             function addCustomItem() {
