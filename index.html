@@ -35,10 +35,8 @@
         }
 
         .theme-toggle {
-            position: fixed;
-            top: 40px;
-            left: 40px;
             cursor: pointer;
+            margin-bottom: 32px;
         }
 
         .container {
@@ -46,12 +44,36 @@
             display: flex;
             flex-direction: column;
             justify-content: flex-end;
-            padding: 0 40px 60px 40px;
+            padding: 40px 40px 0 40px;
             max-width: 750px;
         }
 
         .content {
             margin-bottom: 0;
+            padding-bottom: 140px;
+        }
+
+        .footer {
+            position: fixed;
+            bottom: 0;
+            left: 0;
+            right: 0;
+            padding: 0 40px 60px 40px;
+            background-color: #e8e4df;
+            max-width: 750px;
+            transition: background-color 0.42s;
+        }
+
+        body.sunny .footer {
+            background-color: #fffacf;
+        }
+
+        .footer .cta {
+            margin-top: 32px;
+        }
+
+        .footer .cta:first-child {
+            margin-top: 0;
         }
 
         .section-label {
@@ -83,7 +105,7 @@
         }
 
         .section:last-child {
-            margin-bottom: 0;
+            margin-bottom: 32px;
         }
 
         a {
@@ -155,12 +177,11 @@
 
         @media (max-width: 600px) {
             .container {
-                padding: 0 24px 40px 24px;
+                padding: 24px 24px 0 24px;
             }
 
-            .theme-toggle {
-                top: 24px;
-                left: 24px;
+            .footer {
+                padding: 0 24px 40px 24px;
             }
 
             #add-button {
@@ -170,10 +191,10 @@
     </style>
 </head>
 <body>
-    <div class="theme-toggle" id="theme-toggle">
-        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="4"/><path d="M12 2v2m0 16v2M4.93 4.93l1.41 1.41m11.32 11.32l1.41 1.41M2 12h2m16 0h2M6.34 17.66l-1.41 1.41M19.07 4.93l-1.41 1.41"/></svg>
-    </div>
     <div class="container">
+        <div class="theme-toggle" id="theme-toggle">
+            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="4"/><path d="M12 2v2m0 16v2M4.93 4.93l1.41 1.41m11.32 11.32l1.41 1.41M2 12h2m16 0h2M6.34 17.66l-1.41 1.41M19.07 4.93l-1.41 1.41"/></svg>
+        </div>
         <div class="content">
             <div class="section">
                 <div class="section-label">Currently:</div>
@@ -187,109 +208,112 @@
                 <div class="item">Back-to-back elementary school spelling bee champion, 2007-2008</div>
             </div>
 
-            <div class="cta">
-                <a href="mailto:m.rubel3@gmail.com">Email me</a> to get in touch
             </div>
+        </div>
+    </div>
 
-            <div class="cta">
-                <a href="#" id="add-link">Add to my resume</a>
-                <div class="input-row" id="input-container">
-                    <input type="text" id="resume-input" placeholder="Add to my resume">
-                    <button type="button" id="add-button">Add</button>
-                </div>
+    <div class="footer">
+        <div style="margin-bottom: 32px;">
+            <a href="mailto:m.rubel3&#64;gmail.com">Email me</a> to get in touch
+        </div>
+        <div>
+            <a href="#" id="add-link">Add to my resume</a>
+            <div class="input-row" id="input-container">
+                <input type="text" id="resume-input" placeholder="Add to my resume">
+                <button type="button" id="add-button">Add</button>
             </div>
         </div>
     </div>
 
     <script>
-        // Random resume items
-        const resumeItems = [
-            "MacArthur Genius Grant Winner, 2020",
-            "Daytime Emmy Nominee, Outstanding Legal/Courtroom Program, for Maine Justice",
-            "Webby Honoree, Best Personal Website, 2025",
-            "Second Runner-Up, Portland Country Club Under-14 Golf Invitational, 2014",
-            "Third Place, Williams College Chili Cook-Off, 2017",
-            "19th Place, Under-30 Age Bracket, United Way Palm Beach Turkey Trot, 2024",
-            "Round of 16, \"Wheel of Fortune\" Auditions, 2023",
-            "Honorable Mention, Down East Magazine \"Reader's Choice\" for Best Non-Professional Sunset Photo, 2018",
-            "Shortlisted, Washington Square Adam Driver Lookalike Contest, 2021",
-            "Voted \"Least Likely To Commit A Crime,\" Pembroke Hill Senior Yearbook, 2015",
-            "Most Valuable Player, Maine Sea Dogs AAA Baseball Team, 2006",
-            "Bronze Medalist, Dallas State Fair of Texas (Pickled Okra Division), 2015",
-            "Honorable Mention, Brooklyn Bagel Festival, Amateur Division, 2022",
-            "Recipient, Guggenheim Fellowship for Creative Arts (Acrylics & Oil Paints), 2022",
-            "Knight of the Order of Arts and Letters (Chevalier), French Ministry of Culture, 2003",
-            "Tony Award for Best Original Score (\"Metal Machine Music\"), 2006",
-            "Grand Prize Winner, The New Yorker Cartoon Caption Contest, Issue No. 4631, 2014",
-            "Special Commendation, Kansas City Rotary Club, for \"Exemplary Tween Citizenship,\" 2010",
-            "Pritzker Architecture Prize Juror, 2015",
-            "Member, Council on Foreign Relations, 2014-2017",
-            "Winner, James Beard Award for Outstanding Food Blog, 2026",
-            "Grammy Nominee, Best Spoken Word Album (Prokofiev's \"Peter and the Wolf\"), 2019",
-            "Best New Artist, MTV Video Music Awards (for \"Variations on Stevie Ray Vaughn\"), 2007",
-            "Fellow, Royal Geographical Society, 2023",
-            "Winner, Westminster Dog Show Agility Competition (Junior Handler), 2009"
-        ];
+        (function() {
+            var resumeItems = [
+                "MacArthur Genius Grant Winner, 2020",
+                "Daytime Emmy Nominee, Outstanding Legal/Courtroom Program, for Maine Justice",
+                "Webby Honoree, Best Personal Website, 2025",
+                "Second Runner-Up, Portland Country Club Under-14 Golf Invitational, 2014",
+                "Third Place, Williams College Chili Cook-Off, 2017",
+                "19th Place, Under-30 Age Bracket, United Way Palm Beach Turkey Trot, 2024",
+                "Round of 16, \"Wheel of Fortune\" Auditions, 2023",
+                "Honorable Mention, Down East Magazine \"Reader's Choice\" for Best Non-Professional Sunset Photo, 2018",
+                "Shortlisted, Washington Square Adam Driver Lookalike Contest, 2021",
+                "Voted \"Least Likely To Commit A Crime,\" Pembroke Hill Senior Yearbook, 2015",
+                "Most Valuable Player, Maine Sea Dogs AAA Baseball Team, 2006",
+                "Bronze Medalist, Dallas State Fair of Texas (Pickled Okra Division), 2015",
+                "Honorable Mention, Brooklyn Bagel Festival, Amateur Division, 2022",
+                "Recipient, Guggenheim Fellowship for Creative Arts (Acrylics & Oil Paints), 2022",
+                "Knight of the Order of Arts and Letters (Chevalier), French Ministry of Culture, 2003",
+                "Tony Award for Best Original Score (\"Metal Machine Music\"), 2006",
+                "Grand Prize Winner, The New Yorker Cartoon Caption Contest, Issue No. 4631, 2014",
+                "Special Commendation, Kansas City Rotary Club, for \"Exemplary Tween Citizenship,\" 2010",
+                "Pritzker Architecture Prize Juror, 2015",
+                "Member, Council on Foreign Relations, 2014-2017",
+                "Winner, James Beard Award for Outstanding Food Blog, 2026",
+                "Grammy Nominee, Best Spoken Word Album (Prokofiev's \"Peter and the Wolf\"), 2019",
+                "Best New Artist, MTV Video Music Awards (for \"Variations on Stevie Ray Vaughn\"), 2007",
+                "Fellow, Royal Geographical Society, 2023",
+                "Winner, Westminster Dog Show Agility Competition (Junior Handler), 2009"
+            ];
 
-        // Shuffle array on page load
-        function shuffle(array) {
-            for (let i = array.length - 1; i > 0; i--) {
-                const j = Math.floor(Math.random() * (i + 1));
-                [array[i], array[j]] = [array[j], array[i]];
+            function shuffle(array) {
+                for (var i = array.length - 1; i > 0; i--) {
+                    var j = Math.floor(Math.random() * (i + 1));
+                    var temp = array[i];
+                    array[i] = array[j];
+                    array[j] = temp;
+                }
+                return array;
             }
-            return array;
-        }
 
-        const shuffledItems = shuffle([...resumeItems]);
-        let currentIndex = 0;
+            var shuffledItems = shuffle(resumeItems.slice());
+            var currentIndex = 0;
 
-        // Theme toggle
-        const themeToggle = document.getElementById('theme-toggle');
-        themeToggle.addEventListener('click', () => {
-            document.body.classList.toggle('sunny');
-        });
+            var themeToggle = document.getElementById('theme-toggle');
+            themeToggle.onclick = function() {
+                document.body.classList.toggle('sunny');
+            };
 
-        // Add to resume functionality
-        const addLink = document.getElementById('add-link');
-        const inputContainer = document.getElementById('input-container');
-        const resumeInput = document.getElementById('resume-input');
-        const addButton = document.getElementById('add-button');
-        const previouslySection = document.querySelectorAll('.section')[1];
+            var addLink = document.getElementById('add-link');
+            var inputContainer = document.getElementById('input-container');
+            var resumeInput = document.getElementById('resume-input');
+            var addButton = document.getElementById('add-button');
+            var previouslySection = document.querySelectorAll('.section')[1];
 
-        function addItem(text) {
-            const newItem = document.createElement('div');
-            newItem.className = 'item';
-            newItem.textContent = text;
-            previouslySection.appendChild(newItem);
-        }
-
-        function addCustomItem() {
-            if (resumeInput.value.trim()) {
-                addItem(resumeInput.value.trim());
-                resumeInput.value = '';
-                resumeInput.focus();
+            function addItem(text) {
+                var newItem = document.createElement('div');
+                newItem.className = 'item';
+                newItem.textContent = text;
+                previouslySection.appendChild(newItem);
             }
-        }
 
-        addLink.addEventListener('click', (e) => {
-            e.preventDefault();
-            if (currentIndex < 10) {
-                addItem(shuffledItems[currentIndex]);
-                currentIndex++;
-            } else {
-                addLink.classList.add('hidden');
-                inputContainer.classList.add('visible');
-                resumeInput.focus();
+            function addCustomItem() {
+                if (resumeInput.value.trim()) {
+                    addItem(resumeInput.value.trim());
+                    resumeInput.value = '';
+                    resumeInput.focus();
+                }
             }
-        });
 
-        resumeInput.addEventListener('keydown', (e) => {
-            if (e.key === 'Enter') {
-                addCustomItem();
-            }
-        });
+            addLink.onclick = function(e) {
+                e.preventDefault();
+                if (currentIndex < 10) {
+                    addItem(shuffledItems[currentIndex]);
+                    currentIndex++;
+                } else {
+                    addLink.className = 'hidden';
+                    inputContainer.className = 'input-row visible';
+                    resumeInput.focus();
+                }
+            };
 
-        addButton.addEventListener('click', addCustomItem);
+            resumeInput.onkeydown = function(e) {
+                if (e.key === 'Enter') {
+                    addCustomItem();
+                }
+            };
+
+            addButton.onclick = addCustomItem;
+        })();
     </script>
 </body>
 </html>
