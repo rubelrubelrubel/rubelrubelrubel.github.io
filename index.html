@@ -7,8 +7,13 @@
     <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' width='24' height='24' fill='none' stroke='%231a1a1a' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Ccircle cx='12' cy='12' r='4'/%3E%3Cpath d='M12 2v2m0 16v2M4.93 4.93l1.41 1.41m11.32 11.32l1.41 1.41M2 12h2m16 0h2M6.34 17.66l-1.41 1.41M19.07 4.93l-1.41 1.41'/%3E%3C/svg%3E">
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;800&display=swap" rel="stylesheet">
     <style>
+        :root {
+            --sky-top: #a5d2ec;
+            --sky-bot: #cae3f2;
+        }
+
         * {
             margin: 0;
             padding: 0;
@@ -24,7 +29,7 @@
             font-size: 15px;
             line-height: 1.6;
             color: #1a1a1a;
-            background-color: #e8e4df;
+            background-color: #cae3f2;
             -webkit-font-smoothing: antialiased;
             -moz-osx-font-smoothing: grayscale;
             transition: background-color 0.42s;
@@ -40,6 +45,8 @@
         }
 
         .container {
+            position: relative;
+            z-index: 1;
             min-height: 100%;
             display: flex;
             flex-direction: column;
@@ -101,13 +108,57 @@
             left: 0;
             right: 0;
             padding: 0 40px 60px 40px;
-            background-color: #e8e4df;
+            background-color: #cae3f2;
             max-width: 750px;
+            z-index: 2;
             transition: background-color 0.42s;
+        }
+
+        /* the footer masks scrolled content with a slice of the same sky gradient, aligned to the viewport bottom */
+        .footer::before {
+            content: "";
+            position: absolute;
+            inset: 0;
+            z-index: -1;
+            background-image: linear-gradient(var(--sky-top), var(--sky-bot));
+            background-size: 100% 100vh;
+            background-size: 100% 100dvh;
+            background-position: left bottom;
+            background-repeat: no-repeat;
+            transition: opacity 0.42s;
         }
 
         body.sunny .footer {
             background-color: #FFFAE3;
+        }
+
+        body.sunny .footer::before {
+            opacity: 0;
+        }
+
+        /* while the opening sky is still playing, the footer must not hide the clouds and dots behind it */
+        body.sky-live .footer {
+            background-color: transparent;
+        }
+
+        body.sky-live .footer::before {
+            opacity: 0;
+        }
+
+        .skybg {
+            position: fixed;
+            inset: 0;
+            z-index: -1;
+            background: linear-gradient(var(--sky-top), var(--sky-bot));
+            transition: opacity 0.42s;
+        }
+
+        body.sunny .skybg {
+            opacity: 0;
+        }
+
+        .footer > * {
+            position: relative;
         }
 
         .footer .cta {
@@ -167,6 +218,42 @@
             opacity: 1;
         }
 
+        /* ---- opening sky ---- */
+        #sky {
+            position: fixed;
+            inset: 0;
+            width: 100%;
+            height: 100%;
+            z-index: 10;
+            display: block;
+            touch-action: none;
+            -webkit-tap-highlight-color: transparent;
+            transition: opacity 1.2s ease;
+        }
+
+        #sky.behind {
+            z-index: 0;
+            pointer-events: none;
+        }
+
+        #sky.gone {
+            opacity: 0;
+            pointer-events: none;
+        }
+
+        .container, .footer {
+            transition: opacity 1.5s ease, background-color 0.42s;
+        }
+
+        body.intro {
+            overflow: hidden;
+        }
+
+        body.intro .container,
+        body.intro .footer {
+            opacity: 0;
+        }
+
         @media (max-width: 600px) {
             .container {
                 padding: 24px 24px 0 24px;
@@ -182,7 +269,10 @@
         }
     </style>
 </head>
-<body>
+<body class="intro sky-live">
+    <noscript><style>body.intro .container, body.intro .footer { opacity: 1; } body.sky-live .footer { background-color: #cae3f2; } body.sky-live .footer::before { opacity: 1; } #sky, .skybg { display: none; }</style></noscript>
+    <div class="skybg" aria-hidden="true"></div>
+    <canvas id="sky" aria-hidden="true"></canvas>
     <div class="container">
         <div class="theme-toggle" id="theme-toggle">
             <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="4"/><path d="M12 2v2m0 16v2M4.93 4.93l1.41 1.41m11.32 11.32l1.41 1.41M2 12h2m16 0h2M6.34 17.66l-1.41 1.41M19.07 4.93l-1.41 1.41"/></svg>
@@ -214,6 +304,519 @@
             </div>
         </div>
     </div>
+
+    <script>
+        /* ---- opening sky: painted clouds, a stippled "hello", and a gust of wind ---- */
+        (function() {
+            var canvas = document.getElementById('sky');
+            if (!canvas || !canvas.getContext || !window.requestAnimationFrame) {
+                document.body.classList.remove('intro');
+                document.body.classList.remove('sky-live');
+                if (canvas) canvas.parentNode.removeChild(canvas);
+                return;
+            }
+            var ctx = canvas.getContext('2d');
+
+            // Sky colours. SKY_TOP1 / SKY_BOT1 must match the .skybg gradient in the CSS.
+            var SKY_TOP0 = [104, 182, 226], SKY_BOT0 = [178, 217, 238];
+            var SKY_TOP1 = [165, 210, 236], SKY_BOT1 = [202, 227, 242];
+            var DOT_RGB  = 'rgb(28, 58, 140)';
+
+            var SKY_FADE_DELAY   = 0.5;   // the blue waits this long after the gust starts before lightening
+            var SKY_FADE_SECONDS = 5.5;   // then takes this long to settle on the page colour
+            var REVEAL_AFTER     = 2.0;   // the page text starts fading in this long after the gust
+            var HOVER_SECONDS    = 1.0;   // desktop: hover this long over "hello" to set the dots loose
+
+            var W, H, dpr;
+            var clouds = [];
+            var dots = [], box = null, fontSize = 0, dotR = 3, hitPad = 48;
+            var t = 0, last = 0;
+            var dotsT = -1, trigT = -1, hoverT = -1, revealed = false, finished = false;
+            var pointer = { x: -1e9, y: -1e9, vx: 0, vy: 0, t: 0 };
+            var origin = { x: 0, y: 0 };
+
+            var lastL = -1, rootStyle = document.documentElement.style;
+            function setSky(top, bot) {
+                rootStyle.setProperty('--sky-top', rgb(top));
+                rootStyle.setProperty('--sky-bot', rgb(bot));
+            }
+            function clamp(v, a, b) { return v < a ? a : v > b ? b : v; }
+            function smooth(a, b, v) { v = clamp((v - a) / (b - a), 0, 1); return v * v * (3 - 2 * v); }
+            function ease(v) { return v < 0.5 ? 2 * v * v : 1 - Math.pow(-2 * v + 2, 2) / 2; }
+            function mix3(a, b, k) { return [a[0] + (b[0] - a[0]) * k, a[1] + (b[1] - a[1]) * k, a[2] + (b[2] - a[2]) * k]; }
+            function rgb(c) { return 'rgb(' + Math.round(c[0]) + ',' + Math.round(c[1]) + ',' + Math.round(c[2]) + ')'; }
+            function rnd(a, b) { return a + Math.random() * (b - a); }
+
+            /* ---------- noise ---------- */
+            function hash(x, y, s) {
+                var n = Math.imul(x, 374761393) ^ Math.imul(y, 668265263) ^ Math.imul(s, 1442695041);
+                n = Math.imul(n ^ (n >>> 13), 1274126177);
+                n ^= n >>> 16;
+                return (n >>> 0) / 4294967296;
+            }
+            function vnoise(x, y, s) {
+                var xi = Math.floor(x), yi = Math.floor(y), fx = x - xi, fy = y - yi;
+                var u = fx * fx * (3 - 2 * fx), v = fy * fy * (3 - 2 * fy);
+                var a = hash(xi, yi, s), b = hash(xi + 1, yi, s), c = hash(xi, yi + 1, s), d = hash(xi + 1, yi + 1, s);
+                return a + (b - a) * u + (c - a) * v + (a - b - c + d) * u * v;
+            }
+            function fbm(x, y, oct, s) {
+                var sum = 0, amp = 0.5, tot = 0;
+                for (var i = 0; i < oct; i++) {
+                    sum += amp * vnoise(x, y, s + i * 31);
+                    tot += amp; amp *= 0.5; x *= 2.03; y *= 2.03;
+                }
+                return sum / tot;
+            }
+
+            /* ---------- one cloud, painted once into a sprite ----------
+               A cumulus is a row of overlapping puffs sitting on a flattish base, its outline
+               roughened with noise, lit from above so the tops go cream and the belly blue-grey. */
+            var SHADOW = [168, 187, 208], MID = [224, 231, 238], HI = [255, 255, 253];
+            function ramp(k) {
+                return k < 0.5 ? mix3(SHADOW, MID, k * 2) : mix3(MID, HI, (k - 0.5) * 2);
+            }
+            function smin(a, b, k) {
+                var h = clamp(0.5 + 0.5 * (b - a) / k, 0, 1);
+                return b + (a - b) * h - k * h * (1 - h);
+            }
+
+            function paintCloud(spec) {
+                var pw = spec.pw, ph = Math.round(pw * spec.aspect);
+                var seed = (Math.random() * 1e6) | 0;
+                var wisp = spec.wisp;
+                var y0 = ph * (wisp ? 0.62 : 0.78);           // base line
+                var rMax = ph * (wisp ? 0.30 : 0.21);          // keeps every shape inside its bitmap
+                var puffs = [], n = spec.puffs, i, x, y;
+                // children ride on the upper side of a parent; grandchildren on the children. Each level is
+                // smaller and more numerous, which is what makes a cumulus outline cauliflower rather than balloon.
+                function sprout(cx, cy, r, depth) {
+                    puffs.push([cx, cy, r]);
+                    if (depth === 0 || r < pw * 0.018) return;
+                    var nb = depth === 2 ? 2 + (Math.random() * 3) | 0 : 2 + (Math.random() * 2) | 0;
+                    for (var b = 0; b < nb; b++) {
+                        var ang = -Math.PI / 2 + rnd(-1.5, 1.5), cr = r * rnd(0.32, 0.58);
+                        var dd = r * rnd(0.6, 0.95);
+                        sprout(cx + Math.cos(ang) * dd, Math.max(cr * 1.1, cy + Math.sin(ang) * dd), cr, depth - 1);
+                    }
+                }
+                var tallAt = rnd(0.3, 0.7);                    // the mass peaks somewhere off-centre
+                for (i = 0; i < n; i++) {
+                    var f = n === 1 ? 0.5 : i / (n - 1);
+                    var bump = Math.max(0, 1 - Math.abs(f - tallAt) * rnd(1.4, 2.2)) + rnd(-0.15, 0.15);
+                    var r = Math.min(rMax, pw * (wisp ? rnd(0.07, 0.11) : rnd(0.06, 0.13) * (0.55 + 0.7 * bump)));
+                    var cx = pw * (0.20 + 0.60 * f + rnd(-0.05, 0.05));
+                    var cy = y0 - r * (wisp ? 0.6 : rnd(0.65, 0.9)) - bump * ph * (wisp ? 0.02 : rnd(0.02, 0.12));
+                    if (wisp) puffs.push([cx, cy, r]);
+                    else sprout(cx, cy, r, 2);
+                }
+                var k = pw * (wisp ? 0.14 : 0.07);
+                var warpAmp = pw * (wisp ? 0.12 : 0.085), warpF = (wisp ? 3.5 : 5.5) / pw;
+                var soft = pw * (wisp ? 0.14 : spec.soft);
+                var ystretch = wisp ? 2.2 : 1;
+                var LX = -0.4, LY = -0.7, LZ = 0.59;           // light from the upper left, a little in front
+                var dens = new Float32Array(pw * ph), lit3 = new Float32Array(pw * ph);
+                for (y = 0; y < ph; y++) {
+                    for (x = 0; x < pw; x++) {
+                        var d = 1e9, nx = 0, ny = 0, nz = 0, wsum = 0;
+                        for (i = 0; i < puffs.length; i++) {
+                            var p = puffs[i], dx = x - p[0], dy = (y - p[1]) * ystretch, pr = p[2];
+                            var dist = Math.sqrt(dx * dx + dy * dy), di = dist - pr;
+                            d = smin(d, di, k);
+                            // each puff shades like a sphere; nearby puffs blend their normals
+                            var wgt = Math.exp(-Math.max(0, di) / (k * 0.8)) * (pr / rMax + 0.3);
+                            var q = Math.min(1, dist / pr), zz = Math.sqrt(Math.max(0, 1 - q * q));
+                            nx += wgt * dx / (dist + 0.001) * q; ny += wgt * dy / (dist + 0.001) * q; nz += wgt * zz; wsum += wgt;
+                        }
+                        var shade = 0.5;
+                        if (wsum > 0) {
+                            var nl = Math.sqrt(nx * nx + ny * ny + nz * nz) + 1e-6;
+                            shade = 0.5 + 0.5 * (nx * LX + ny * LY + nz * LZ) / nl;
+                        }
+                        lit3[y * pw + x] = shade;
+                        d += (fbm(x * warpF, y * warpF, 5, seed) - 0.5) * warpAmp;
+                        if (!wisp) {
+                            var base = y - (y0 + (fbm(x * warpF * 0.6, 0, 2, seed + 7) - 0.5) * pw * 0.05);
+                            d = -smin(-d, -base, k * 0.7);
+                        }
+                        var dn = 1 - smooth(-soft, soft, d);
+                        dn *= 0.72 + 0.28 * smooth(-soft * 3, soft * 0.5, -d);
+                        // internal texture at two scales, so the body is never a flat fill
+                        dn *= 0.9 + 0.1 * fbm(x * 0.05, y * 0.05, 3, seed + 3);
+                        // fade to nothing at the bitmap border so nothing is ever clipped to a hard line
+                        var mx = Math.min(x, pw - 1 - x) / (pw * 0.07), my = Math.min(y, ph - 1 - y) / (ph * 0.08);
+                        dn *= smooth(0, 1, mx) * smooth(0, 1, my);
+                        dens[y * pw + x] = dn;
+                    }
+                }
+                var off = document.createElement('canvas');
+                off.width = pw; off.height = ph;
+                var oc = off.getContext('2d');
+                var img = oc.createImageData(pw, ph), dd = img.data;
+                var ox = Math.max(1, Math.round(pw * 0.03)), oy = Math.max(2, Math.round(pw * 0.06));
+                for (y = 0; y < ph; y++) {
+                    for (x = 0; x < pw; x++) {
+                        i = y * pw + x;
+                        var dn2 = dens[i], o = i * 4;
+                        if (dn2 <= 0.003) { dd[o + 3] = 0; continue; }
+                        var up = dens[Math.max(0, y - oy) * pw + Math.max(0, x - ox)];
+                        var hf = clamp((y0 - y) / (ph * 0.6), 0, 1);
+                        // brushy tonal variation at three scales does most of the work; the sphere term only hints at volume
+                        var lobes = (fbm(x * 0.03, y * 0.04, 4, seed + 11) - 0.5) * 0.4
+                                  + (fbm(x * 0.012, y * 0.016, 2, seed + 17) - 0.5) * 0.35;
+                        var up2 = dens[Math.max(0, y - Math.round(oy * 0.4)) * pw + Math.max(0, x - Math.round(ox * 0.4))];
+                        // light from above only ever brightens a lobe's top; it never draws a dark contour under it
+                        var top = Math.max(0, dn2 - up) * spec.shade * 0.2 + Math.max(0, dn2 - up2) * spec.shade * 0.3;
+                        var lit = clamp(0.34 + 0.22 * lit3[i] + 0.2 * hf + lobes + top, 0, 1);
+                        // edges are the thinnest, brightest part of a cloud: they fade white into the blue, never grey
+                        var body = smooth(0.03, 0.6, dn2);
+                        lit = lit * body + 0.9 * (1 - body);
+                        if (wisp) lit = clamp(lit + 0.25, 0, 1);
+                        var c = ramp(lit);
+                        dd[o] = c[0]; dd[o + 1] = c[1]; dd[o + 2] = c[2];
+                        dd[o + 3] = Math.round(255 * Math.pow(dn2, spec.gamma));
+                    }
+                }
+                oc.putImageData(img, 0, 0);
+                return off;
+            }
+
+            function buildClouds() {
+                clouds = [];
+                function add(count, spec) {
+                    for (var i = 0; i < count; i++) {
+                        var size = rnd(spec.sizeMin, spec.sizeMax);
+                        var sw = Math.min(W, H * 1.6) * size;
+                        var sprite = paintCloud(spec);
+                        var sh = sw * sprite.height / sprite.width;
+                        clouds.push({
+                            cv: sprite, w: sw, h: sh,
+                            x: (i + Math.random() * 0.8) / count * (W + sw) - sw,
+                            y: H * rnd(spec.yMin, spec.yMax) - sh / 2,
+                            drift: spec.drift * rnd(0.8, 1.25), alpha: spec.alpha,
+                            depth: spec.depth, delay: 0, vx: 0, vy: 0, dx: 0, dy: 0,
+                            scale: 1, ph: Math.random() * 6.2832, life: rnd(3.8, 5.2), dead: false
+                        });
+                    }
+                }
+                // far bank: big, soft, slow
+                add(3, { pw: 170, aspect: 0.62, puffs: 6, wisp: false, shade: 1.6, gamma: 1.25, alpha: 0.92, soft: 0.075,
+                         sizeMin: 0.7, sizeMax: 1.1, yMin: 0.02, yMax: 0.40, drift: 4, depth: 0.6 });
+                // wisps threading between
+                add(2, { pw: 160, aspect: 0.34, puffs: 6, wisp: true, shade: 1.0, gamma: 1.5, alpha: 0.45, soft: 0.15,
+                         sizeMin: 0.5, sizeMax: 0.9, yMin: 0.05, yMax: 0.9, drift: 10, depth: 0.9 });
+                // near cumulus: crisper, faster
+                add(3, { pw: 260, aspect: 0.62, puffs: 5, wisp: false, shade: 1.8, gamma: 1.15, alpha: 0.96, soft: 0.055,
+                         sizeMin: 0.36, sizeMax: 0.66, yMin: 0.35, yMax: 0.95, drift: 8, depth: 1.0 });
+                clouds.sort(function(a, b) { return a.depth - b.depth; });
+            }
+
+            /* ---------- "hello" as a field of evenly spaced dots ---------- */
+            function buildDots() {
+                fontSize = Math.min(W * (W < 600 ? 0.36 : 0.30), H * 0.40, 560);
+                var font = '800 ' + fontSize + 'px Inter, "Helvetica Neue", Helvetica, Arial, sans-serif';
+
+                var tc = document.createElement('canvas'); tc.width = W; tc.height = H;
+                var tx = tc.getContext('2d');
+                tx.font = font; tx.textAlign = 'center'; tx.textBaseline = 'alphabetic';
+                if ('letterSpacing' in tx) tx.letterSpacing = '-0.02em';
+                var m = tx.measureText('hello');
+                var cx = W / 2;
+                var cy = H / 2 + (m.actualBoundingBoxAscent - m.actualBoundingBoxDescent) / 2;
+                tx.fillStyle = '#000';
+                tx.fillText('hello', cx, cy);
+                box = { l: cx - m.actualBoundingBoxLeft, r: cx + m.actualBoundingBoxRight,
+                        t: cy - m.actualBoundingBoxAscent, b: cy + m.actualBoundingBoxDescent };
+                var sharp = tx.getImageData(0, 0, W, H).data;
+
+                // cheap, universal blur: downscale then upscale with smoothing
+                var k = Math.max(4, Math.round(fontSize / 40));
+                var sm = document.createElement('canvas'); sm.width = Math.ceil(W / k); sm.height = Math.ceil(H / k);
+                sm.getContext('2d').drawImage(tc, 0, 0, sm.width, sm.height);
+                var bc = document.createElement('canvas'); bc.width = W; bc.height = H;
+                var bx = bc.getContext('2d');
+                bx.imageSmoothingEnabled = true;
+                bx.drawImage(sm, 0, 0, W, H);
+                var soft = bx.getImageData(0, 0, W, H).data;
+
+                // dart throwing with a minimum spacing, so every dot is the same size and none touch
+                dotR = fontSize * 0.0082;
+                var minD = dotR * 2.35;
+                var clumpSeed = (Math.random() * 1e6) | 0;
+                var pad = fontSize * 0.22;
+                var l = Math.max(0, box.l - pad), rr = Math.min(W, box.r + pad);
+                var tp = Math.max(0, box.t - pad), bt = Math.min(H, box.b + pad);
+                var cell = minD, gw = Math.ceil((rr - l) / cell) + 1, gh = Math.ceil((bt - tp) / cell) + 1;
+                var grid = new Int32Array(gw * gh); for (var g = 0; g < grid.length; g++) grid[g] = -1;
+                var attempts = Math.round((rr - l) * (bt - tp) / (minD * minD) * 30);
+                hitPad = Math.max(48, fontSize * 0.14);
+
+                dots = [];
+                for (var i = 0; i < attempts; i++) {
+                    var x = l + Math.random() * (rr - l), y = tp + Math.random() * (bt - tp);
+                    var idx = ((y | 0) * W + (x | 0)) * 4 + 3;
+                    var a = sharp[idx] / 255, s = soft[idx] / 255;
+                    var p = a > 0.5 ? 1 : Math.pow(s, 6) * 0.35 + 0.00012;
+                    // let the density ebb and flow across the letters so it never looks gridded
+                    p *= 0.45 + 0.55 * fbm(x * 0.045, y * 0.045, 2, clumpSeed);
+                    if (Math.random() >= p) continue;
+                    var gx = ((x - l) / cell) | 0, gy = ((y - tp) / cell) | 0, ok = true;
+                    for (var yy = Math.max(0, gy - 1); yy <= Math.min(gh - 1, gy + 1) && ok; yy++) {
+                        for (var xx = Math.max(0, gx - 1); xx <= Math.min(gw - 1, gx + 1); xx++) {
+                            var j = grid[yy * gw + xx];
+                            if (j >= 0) {
+                                var ddx = dots[j].ox - x, ddy = dots[j].oy - y;
+                                if (ddx * ddx + ddy * ddy < minD * minD) { ok = false; break; }
+                            }
+                        }
+                    }
+                    if (!ok) continue;
+                    grid[gy * gw + gx] = dots.length;
+                    dots.push({ ox: x, oy: y, x: x, y: y, vx: 0, vy: 0, dirx: 1, diry: 0,
+                                free: Math.random() < 0.07,          // a few wanderers drift between the letters
+                                ph: Math.random() * 6.2832, w: rnd(0.35, 1.6), g: rnd(0.5, 1.6), slow: rnd(0.6, 1.8),
+                                k: rnd(0.5, 1.5), sens: rnd(0.2, 1.0), delay: 0, life: rnd(2.6, 5.2) });
+                }
+            }
+
+            function inHello(x, y) {
+                return box && x > box.l - hitPad && x < box.r + hitPad && y > box.t - hitPad && y < box.b + hitPad;
+            }
+
+            /* ---------- the gust: everything scatters away from where you touched ---------- */
+            function trigger(px, py) {
+                if (trigT >= 0 || dotsT < 0) return;
+                trigT = t;
+                origin.x = px; origin.y = py;
+                var far = Math.max(W, H);
+                var i, d, dx, dy, dist, ang;
+                // a ripple: release time grows with distance from the touch, roughened by a slow noise field
+                var rippleSpeed = fontSize * 1.1, rseed = (Math.random() * 1e6) | 0;
+                for (i = 0; i < dots.length; i++) {
+                    d = dots[i];
+                    dx = d.x - px; dy = d.y - py; dist = Math.sqrt(dx * dx + dy * dy);
+                    ang = dist < 1 ? Math.random() * 6.2832 : Math.atan2(dy, dx) + rnd(-0.3, 0.3);
+                    d.dirx = Math.cos(ang); d.diry = Math.sin(ang);
+                    d.delay = dist / rippleSpeed + (fbm(d.x * 0.01, d.y * 0.01, 2, rseed) - 0.5) * 0.9 + Math.random() * 0.6;
+                    if (d.delay < 0) d.delay = 0;
+                }
+                for (i = 0; i < clouds.length; i++) {
+                    d = clouds[i];
+                    dx = d.x + d.w / 2 - px; dy = d.y + d.h / 2 - py; dist = Math.sqrt(dx * dx + dy * dy);
+                    ang = dist < 1 ? Math.random() * 6.2832 : Math.atan2(dy, dx) + rnd(-0.2, 0.2);
+                    d.dirx = Math.cos(ang); d.diry = Math.sin(ang);
+                    d.delay = 0.4 + (dist / far) * 2.4 + Math.random() * 0.4;
+                    d.life = rnd(6.0, 8.0);
+                }
+            }
+
+            /* ---------- drawing ---------- */
+            function drawSky(dt) {
+                var L = trigT < 0 ? 0 : ease(clamp((t - trigT - SKY_FADE_DELAY) / SKY_FADE_SECONDS, 0, 1));
+                ctx.clearRect(0, 0, W, H);
+                if (L !== lastL) {
+                    setSky(mix3(SKY_TOP0, SKY_TOP1, L), mix3(SKY_BOT0, SKY_BOT1, L));
+                    lastL = L;
+                }
+                ctx.imageSmoothingEnabled = true;
+                ctx.imageSmoothingQuality = 'high';
+                var alive = 0;
+                for (var i = 0; i < clouds.length; i++) {
+                    var c = clouds[i];
+                    if (c.dead) continue;
+                    var a = c.alpha, sc = 1;
+                    // idle drift, wrapping around the far edge
+                    c.x += c.drift * dt;
+                    if (trigT < 0 || t - trigT < c.delay) {
+                        if (c.x > W + 20) c.x = -c.w - 20;
+                    } else {
+                        var e = t - trigT - c.delay;
+                        if (e >= c.life) { c.dead = true; continue; }
+                        var ramp2 = smooth(0, 3.5, e);
+                        var sp = (18 + 75 * ramp2) * c.depth;
+                        var wob = Math.sin(t * 0.7 + c.ph) * 8;
+                        var k = Math.min(1, dt * 0.8);
+                        c.vx += (c.dirx * sp + wob - c.vx) * k;
+                        c.vy += (c.diry * sp - 6 * ramp2 - c.vy) * k;
+                        c.dx += c.vx * dt; c.dy += c.vy * dt;
+                        sc = 1 + e * 0.04;
+                        a *= 1 - smooth(0.2, 1, e / c.life);
+                    }
+                    if (a <= 0.004) continue;
+                    alive++;
+                    var w = c.w * sc, h = c.h * sc;
+                    var cxp = c.x + c.dx + c.w / 2, cyp = c.y + c.dy + c.h / 2;
+                    ctx.globalAlpha = a;
+                    ctx.drawImage(c.cv, cxp - w / 2, cyp - h / 2, w, h);
+                }
+                ctx.globalAlpha = 1;
+                return { L: L, alive: alive };
+            }
+
+            function drawDots(dt) {
+                if (dotsT < 0) return 1;
+                var appear = smooth(0, 1.6, t - dotsT);
+                var windR = fontSize * 0.42;
+                var driftSpeed = dotR * 1.1;
+                var alive = 0;
+                // pointer wind dies off when the cursor stops moving; only its direction and a capped strength matter
+                pointer.vx *= Math.max(0, 1 - dt * 4); pointer.vy *= Math.max(0, 1 - dt * 4);
+                var pspeed = Math.sqrt(pointer.vx * pointer.vx + pointer.vy * pointer.vy);
+                var pstr = Math.min(1, pspeed / 600), pwx = 0, pwy = 0;
+                if (pspeed > 1) { pwx = pointer.vx / pspeed * pstr; pwy = pointer.vy / pspeed * pstr; }
+                ctx.fillStyle = DOT_RGB;
+                for (var i = 0; i < dots.length; i++) {
+                    var d = dots[i], a = appear, r = dotR;
+                    if (trigT < 0 || t - trigT < d.delay) {
+                        // at rest: a slow, smooth current carries each dot a little, a soft spring keeps it home
+                        var fx = (vnoise(d.x * 0.006 + t * 0.05, d.y * 0.006, 5) - 0.5) * 2;
+                        var fy = (vnoise(d.x * 0.006, d.y * 0.006 + t * 0.045, 9) - 0.5) * 2;
+                        var sp = d.free ? driftSpeed * 4 : driftSpeed;
+                        var spring = d.free ? 0.12 : 0.9;
+                        var ax = fx * sp * 1.1 + (d.ox - d.x) * spring;
+                        var ay = fy * sp * 1.1 + (d.oy - d.y) * spring;
+                        // the cursor's motion is a breath of wind: dots near it flutter and are nudged downwind,
+                        // each to its own degree, then settle back without bouncing
+                        var pdx = d.x - pointer.x, pdy = d.y - pointer.y, pd = Math.sqrt(pdx * pdx + pdy * pdy);
+                        if (pd < windR && pspeed > 20) {
+                            var f = 1 - pd / windR; f = f * f * d.sens;
+                            var flutter = (vnoise(d.x * 0.05 + t * 3, d.y * 0.05, 33) - 0.5) * 2;
+                            ax += pwx * f * 55 + flutter * f * 260 + pdx / (pd + 1) * f * 12;
+                            ay += pwy * f * 55 - flutter * f * 180 + pdy / (pd + 1) * f * 12;
+                        }
+                        d.vx += ax * dt; d.vy += ay * dt;
+                        var damp = Math.max(0, 1 - dt * 2.2);
+                        d.vx *= damp; d.vy *= damp;
+                        d.x += d.vx * dt; d.y += d.vy * dt;
+                        alive++;
+                    } else {
+                        var e = t - trigT - d.delay;
+                        if (e >= d.life) continue;
+                        var ramp = smooth(0, 1.3 * d.slow, e);
+                        // a steady push away from the touch...
+                        var gs = (25 + 120 * ramp) * d.w;
+                        // ...inside a gusty, swirling wind that every dot feels differently
+                        var gust = (70 + 190 * ramp) * d.g * (0.55 + 0.45 * Math.sin(t * 0.8 + d.ph));
+                        var wx = (vnoise(d.x * 0.0035 + t * 0.12, d.y * 0.0035, 41) - 0.5) * 2 * gust;
+                        var wy = (vnoise(d.x * 0.0035, d.y * 0.0035 + t * 0.10, 47) - 0.5) * 2 * gust;
+                        // the wind may swirl sideways but never back toward the touch
+                        var inward = wx * d.dirx + wy * d.diry;
+                        if (inward < 0) { wx -= inward * d.dirx; wy -= inward * d.diry; }
+                        var eddy = Math.sin(t * (1.5 + d.k) + d.ph) * 14;
+                        var k = Math.min(1, dt * (1.0 + 1.2 * d.k));
+                        d.vx += (d.dirx * gs + wx - eddy * d.diry - d.vx) * k;
+                        d.vy += (d.diry * gs + wy + eddy * d.dirx - 14 * ramp - d.vy) * k;
+                        var vr = d.vx * d.dirx + d.vy * d.diry;
+                        if (vr < 0) { d.vx -= vr * d.dirx; d.vy -= vr * d.diry; }
+                        d.x += d.vx * dt; d.y += d.vy * dt;
+                        a *= 1 - smooth(0.3, 1, e / d.life);
+                        r *= 1 + e * 0.05;
+                        alive++;
+                    }
+                    if (a <= 0.004 || d.x < -20 || d.x > W + 20 || d.y < -20 || d.y > H + 20) continue;
+                    ctx.globalAlpha = a;
+                    ctx.beginPath();
+                    ctx.arc(d.x, d.y, r, 0, 6.2832);
+                    ctx.fill();
+                }
+                ctx.globalAlpha = 1;
+                return alive;
+            }
+
+            function reveal() {
+                if (revealed) return;
+                revealed = true;
+                document.body.classList.remove('intro');
+                canvas.className = 'behind';
+            }
+
+            function finish() {
+                if (finished) return;
+                finished = true;
+                reveal();
+                canvas.className = 'gone';
+                document.body.classList.remove('sky-live');
+                rootStyle.removeProperty('--sky-top'); rootStyle.removeProperty('--sky-bot');
+                setTimeout(function() { if (canvas.parentNode) canvas.parentNode.removeChild(canvas); }, 1400);
+            }
+
+            function frame(now) {
+                if (finished) return;
+                var dt = last ? Math.min(0.05, (now - last) / 1000) : 0.016;
+                last = now; t += dt;
+
+                if (trigT < 0 && hoverT >= 0 && t - hoverT > HOVER_SECONDS) trigger(pointer.x, pointer.y);
+
+                var sky = drawSky(dt);
+                var dotsAlive = drawDots(dt);
+
+                if (!revealed && trigT >= 0 && t - trigT > REVEAL_AFTER) reveal();
+                if (revealed && sky.L >= 1 && dotsAlive === 0 && sky.alive === 0) { finish(); return; }
+                requestAnimationFrame(frame);
+            }
+
+            /* ---------- sizing & input ---------- */
+            function size() {
+                dpr = Math.min(2, window.devicePixelRatio || 1);
+                W = window.innerWidth; H = window.innerHeight;
+                canvas.width = Math.round(W * dpr); canvas.height = Math.round(H * dpr);
+                ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+            }
+
+            var resizeTimer;
+            window.addEventListener('resize', function() {
+                clearTimeout(resizeTimer);
+                resizeTimer = setTimeout(function() {
+                    if (finished) return;
+                    var oldW = W, oldH = H;
+                    size();
+                    if (trigT < 0 && (Math.abs(W - oldW) > 2 || Math.abs(H - oldH) > 60)) {
+                        buildClouds();
+                        if (fontReady) buildDots();
+                    }
+                }, 150);
+            });
+
+            canvas.addEventListener('pointermove', function(e) {
+                var now = performance.now();
+                if (pointer.t && pointer.x > -1e8) {
+                    var dts = Math.max(0.004, (now - pointer.t) / 1000);
+                    var nvx = (e.clientX - pointer.x) / dts, nvy = (e.clientY - pointer.y) / dts;
+                    pointer.vx += (nvx - pointer.vx) * 0.5; pointer.vy += (nvy - pointer.vy) * 0.5;
+                }
+                pointer.t = now;
+                pointer.x = e.clientX; pointer.y = e.clientY;
+                if (e.pointerType !== 'mouse') return;
+                if (inHello(e.clientX, e.clientY)) { if (hoverT < 0) hoverT = t; }
+                else hoverT = -1;
+            });
+            canvas.addEventListener('pointerleave', function() { hoverT = -1; pointer.x = pointer.y = -1e9; pointer.vx = pointer.vy = 0; pointer.t = 0; });
+            canvas.addEventListener('pointerdown', function(e) {
+                pointer.x = e.clientX; pointer.y = e.clientY;
+                if (inHello(e.clientX, e.clientY)) trigger(e.clientX, e.clientY);
+            });
+            canvas.addEventListener('touchmove', function(e) { e.preventDefault(); }, { passive: false });
+
+            /* ---------- go ---------- */
+            setSky(SKY_TOP0, SKY_BOT0);
+            size();
+            if (W >= 2 && H >= 2) buildClouds();
+            requestAnimationFrame(frame);
+
+            var fontReady = false;
+            function onFont() {
+                if (fontReady) return;
+                if (W < 2 || H < 2) { setTimeout(onFont, 200); return; }
+                fontReady = true; buildDots(); dotsT = t;
+            }
+            if (document.fonts && document.fonts.load) {
+                document.fonts.load('800 40px Inter').then(onFont, onFont);
+                setTimeout(onFont, 1800);
+            } else {
+                setTimeout(onFont, 400);
+            }
+        })();
+    </script>
 
     <script>
         (function() {
