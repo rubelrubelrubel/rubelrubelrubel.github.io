@@ -10,10 +10,28 @@
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;800&display=swap" rel="stylesheet">
     <style>
+        /* the page colour is one animatable token, so the footer, its fade and the top fade all change together */
+        @property --bg {
+            syntax: '<color>';
+            inherits: true;
+            initial-value: #b8dbef;
+        }
+
         :root {
             --sky-top: #b8dbef;
             --sky-mid: #b8dbef;
             --sky-bot: #b8dbef;
+            --bg: #b8dbef;
+            --gutter: 40px;
+            --footer-h: 140px;
+            background-color: var(--bg);
+            transition: --bg 0.42s;
+            -webkit-text-size-adjust: 100%;
+            text-size-adjust: 100%;
+        }
+
+        :root:has(body.sunny) {
+            --bg: #FFFAE3;
         }
 
         * {
@@ -31,19 +49,15 @@
             font-size: 15px;
             line-height: 1.6;
             color: #1c3a8c;
-            background-color: #b8dbef;
             -webkit-font-smoothing: antialiased;
             -moz-osx-font-smoothing: grayscale;
-            transition: background-color 0.42s;
-        }
-
-        body.sunny {
-            background-color: #FFFAE3;
         }
 
         .theme-toggle {
             cursor: pointer;
             margin-bottom: 32px;
+            width: 24px;
+            height: 24px;
         }
 
         .container {
@@ -53,13 +67,13 @@
             display: flex;
             flex-direction: column;
             justify-content: flex-end;
-            padding: 96px 40px 0 40px;
+            padding: calc(96px + env(safe-area-inset-top)) max(var(--gutter), env(safe-area-inset-right)) 0 max(var(--gutter), env(safe-area-inset-left));
             max-width: 750px;
         }
 
         .content {
-            margin-bottom: 0;
-            padding-bottom: 135px;
+            /* always clear the pinned footer and its fade, however tall the footer gets */
+            padding-bottom: calc(var(--footer-h) + 48px);
         }
 
         .section-label {
@@ -74,6 +88,7 @@
             margin-bottom: 8px;
             padding-left: 16px;
             position: relative;
+            overflow-wrap: break-word;
         }
 
         .item::before {
@@ -91,7 +106,7 @@
         }
 
         .section:last-child {
-            margin-bottom: 32px;
+            margin-bottom: 0;
         }
 
         a {
@@ -109,20 +124,46 @@
             bottom: 0;
             left: 0;
             right: 0;
-            padding: 0 40px 60px 40px;
-            background-color: #b8dbef;
+            padding: 8px max(var(--gutter), env(safe-area-inset-right)) calc(60px + env(safe-area-inset-bottom)) max(var(--gutter), env(safe-area-inset-left));
+            background-color: var(--bg);
             max-width: 750px;
             z-index: 2;
-            transition: background-color 0.42s;
         }
 
-        body.sunny .footer {
-            background-color: #FFFAE3;
+        /* the list fades out as it scrolls under the footer instead of being cut off */
+        .footer::before {
+            content: "";
+            position: absolute;
+            left: 0;
+            right: 0;
+            bottom: 100%;
+            height: 56px;
+            background: linear-gradient(to bottom, color-mix(in srgb, var(--bg) 0%, transparent), var(--bg));
+            pointer-events: none;
+            transition: opacity 0.6s;
         }
 
-        /* while the opening sky is still playing, the footer must not hide the clouds and dots behind it */
+        /* and the same under the status bar */
+        .topfade {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            height: calc(env(safe-area-inset-top) + 24px);
+            background: linear-gradient(to bottom, var(--bg) env(safe-area-inset-top), color-mix(in srgb, var(--bg) 0%, transparent));
+            z-index: 2;
+            pointer-events: none;
+            transition: opacity 0.6s;
+        }
+
+        /* while the opening sky is still playing, nothing may hide the clouds and dots behind it */
         body.sky-live .footer {
             background-color: transparent;
+        }
+
+        body.sky-live .footer::before,
+        body.sky-live .topfade {
+            opacity: 0;
         }
 
         .skybg {
@@ -135,14 +176,6 @@
 
         body.sunny .skybg {
             opacity: 0;
-        }
-
-        .footer .cta {
-            margin-top: 32px;
-        }
-
-        .footer .cta:first-child {
-            margin-top: 0;
         }
 
         .input-row {
@@ -161,13 +194,18 @@
 
         #resume-input {
             font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
-            font-size: 15px;
+            font-size: 16px;   /* 16px or more, or iOS zooms the page when the field is tapped */
             color: inherit;
             background: transparent;
             border: none;
             border-bottom: 1px solid currentColor;
+            border-radius: 0;
+            -webkit-appearance: none;
+            appearance: none;
             padding: 4px 0;
-            width: 300px;
+            flex: 1 1 auto;
+            min-width: 0;
+            max-width: 300px;
             outline: none;
         }
 
@@ -204,7 +242,8 @@
             display: block;
             touch-action: none;
             -webkit-tap-highlight-color: transparent;
-            transition: opacity 1.2s ease;
+            -webkit-user-select: none;
+            user-select: none;
         }
 
         #sky.behind {
@@ -213,25 +252,37 @@
         }
 
         .container, .footer {
-            transition: opacity 1.5s ease, background-color 0.42s;
+            transition: opacity 1.5s ease;
         }
 
         body.intro {
             overflow: hidden;
         }
 
+        /* during the wipe the text surfaces gradually; the script sets --reveal as more of "hello" is cleared */
         body.intro .container,
         body.intro .footer {
-            opacity: 0;
+            opacity: var(--reveal, 0);
+            transition: none;
         }
 
         @media (max-width: 600px) {
+            :root {
+                --gutter: 24px;
+            }
+
+            /* phones: content starts just under the M instead of floating at the bottom of the screen */
             .container {
-                padding: 72px 24px 0 24px;
+                justify-content: flex-start;
+                padding-top: calc(82px + env(safe-area-inset-top));
             }
 
             .footer {
-                padding: 0 24px 40px 24px;
+                padding-bottom: calc(32px + env(safe-area-inset-bottom));
+            }
+
+            #resume-input {
+                max-width: none;
             }
 
             #add-button {
@@ -241,9 +292,10 @@
     </style>
 </head>
 <body class="intro sky-live">
-    <noscript><style>body.intro .container, body.intro .footer { opacity: 1; } body.sky-live .footer { background-color: #b8dbef; } #sky, .skybg { display: none; }</style></noscript>
+    <noscript><style>body.intro .container, body.intro .footer { opacity: 1; } body.sky-live .footer { background-color: var(--bg); } body.sky-live .footer::before, body.sky-live .topfade { opacity: 1; } #sky, .skybg { display: none; }</style></noscript>
     <div class="skybg" aria-hidden="true"></div>
     <canvas id="sky" aria-hidden="true"></canvas>
+    <div class="topfade" aria-hidden="true"></div>
     <div class="container">
         <div class="theme-toggle" id="theme-toggle">
             <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="4"/><path d="M12 2v2m0 16v2M4.93 4.93l1.41 1.41m11.32 11.32l1.41 1.41M2 12h2m16 0h2M6.34 17.66l-1.41 1.41M19.07 4.93l-1.41 1.41"/></svg>
@@ -270,14 +322,14 @@
         <div>
             <a href="#" id="add-link">Not impressive enough</a>
             <div class="input-row" id="input-container">
-                <input type="text" id="resume-input" placeholder="Pad my resume">
+                <input type="text" id="resume-input" placeholder="Pad my resume" enterkeyhint="done" autocomplete="off">
                 <button type="button" id="add-button">Add</button>
             </div>
         </div>
     </div>
 
     <script>
-        /* ---- opening sky: painted clouds, a stippled "hello", and a gust of wind ---- */
+        /* ---- opening sky: painted clouds, a stippled "hello" you blow away with your finger or cursor ---- */
         (function() {
             var canvas = document.getElementById('sky');
             var themeMeta = document.querySelector('meta[name="theme-color"]');
@@ -295,22 +347,37 @@
             // A few close tones around the dot blue, like paint mixed slightly unevenly
             var PALETTE  = ['rgb(28,58,140)', 'rgb(28,58,140)', 'rgb(24,52,126)', 'rgb(34,64,150)', 'rgb(22,46,110)'];
 
-            var SKY_FADE_DELAY   = 0.5;   // the blue waits this long after the gust starts before lightening
-            var SKY_FADE_SECONDS = 5.5;   // then takes this long to settle on the page colour
-            var REVEAL_AFTER     = 2.0;   // the page text starts fading in this long after the gust
-            var HOVER_SECONDS    = 1.0;   // desktop: hover this long over "hello" to start the gust
-            var GUST_WINDOW      = 4.5;   // after the gust starts, moving the pointer keeps adding ripples for this long
+            // How the wipe culminates. "Cleared" is the share of the letters' dots that have been wiped or let go.
+            var STIR_FROM    = 0.15;   // from here the dots still standing start to stir and wobble
+            var LOOSE_FROM   = 0.18;   // from here a few of them come free on their own, more the closer you get
+            var FINISH_AT    = 0.42;   // here everything left lets go, over a few seconds
+            var SKY_BEFORE   = 0.5;    // how far the sky lightens while you are still wiping (of the whole way)
+            var TEXT_BEFORE  = 0.3;    // how far the page text fades in while you are still wiping
+            var REVEAL_AFTER = 0.9;    // after the finish, the page text takes over this many seconds later
+
+            // dot states
+            var REST = 0, FLOW = 1, BLOW = 3, HOME = 4, GONE = 5;
 
             var W, H, dpr;
             var clouds = [];
-            var dots = [], homeDots = [], box = null, fontSize = 0, dotR = 3, hitPad = 48;
+            var dots = [], homeDots = [], box = null, fontSize = 0, dotR = 3;
             var t = 0, last = 0;
-            var dotsT = -1, trigT = -1, hoverT = -1, revealed = false, settled = false;
+            var dotsT = -1, revealed = false, settled = false, started = false, wantFinish = false;
+            var letterTotal = 0, cleared = 0, prog = 0, loosen = 0, skyL = 0, finishT = -1, revealA = -1;
             var pointer = { x: -1e9, y: -1e9, vx: 0, vy: 0, t: 0 };
-            var sources = [];
+            var brush = { on: false, touch: false, fresh: true, px: 0, py: 0, vx: 0, vy: 0 };
             var mono = { pts: [], r: 2 };
             var lastL = -1, rootStyle = document.documentElement.style;
             var daubs = [], daubBase = 0;
+
+            // safe-area insets (notch, rounded corners), read from a probe so the M lines up with the CSS
+            var safe = { t: 0, l: 0 };
+            var probe = document.createElement('div');
+            probe.setAttribute('aria-hidden', 'true');
+            probe.style.cssText = 'position:fixed;left:0;top:0;visibility:hidden;pointer-events:none;' +
+                'width:env(safe-area-inset-left,0px);height:env(safe-area-inset-top,0px)';
+            document.body.appendChild(probe);
+            function readSafe() { safe.t = probe.offsetHeight || 0; safe.l = probe.offsetWidth || 0; }
 
             // Each dot is a small painted daub, not a circle: a wobbly outline, pigment thicker toward the
             // middle, a soft thin edge and a faint halo. A handful of variants are painted once, then reused.
@@ -537,7 +604,7 @@
                             x: (i + Math.random() * 0.8) / count * (W + sw) - sw,
                             y: H * rnd(spec.yMin, spec.yMax) - sh / 2,
                             drift: spec.drift * rnd(0.8, 1.25), alpha: spec.alpha,
-                            depth: spec.depth, rel: false, relT: 0, dirx: 1, diry: 0, noise: rnd(-0.1, 0.15) * W,
+                            depth: spec.depth, rel: false, relT: 0, relAt: -1, dirx: 1, diry: 0,
                             vx: 0, vy: 0, dx: 0, dy: 0, ph: Math.random() * 6.2832, life: rnd(6.0, 8.0), dead: false
                         };
                         clouds.push(c);
@@ -557,39 +624,50 @@
             }
 
             /* ---------- the small "M" pinned in the corner: a thin single-dot path ---------- */
+            // The points are listed in pen order (up the left side, down to the vertex, back up, down the
+            // right side), and dots are sent to them in that order, so the M draws itself as you wipe.
             function buildMonogram() {
-                var pad = W < 600 ? 24 : 40, mw = W < 600 ? 26 : 32, mh = mw * 0.94;
+                readSafe();
+                var small = W <= 600;
+                var ox = Math.max(small ? 24 : 40, safe.l), oy = (small ? 24 : 40) + safe.t;
+                var mw = small ? 26 : 32, mh = mw * 0.94;
                 mono.r = mw * 0.058;
-                var sp = mono.r * 2.7, ox = pad, oy = pad, pts = [];
-                // uprights: a fixed count of equally spaced dots, corners included
+                var sp = mono.r * 2.7, pts = [];
                 var nU = Math.max(2, Math.round(mh / sp)), ys = mh / nU, k;
-                for (k = 0; k <= nU; k++) pts.push([0, k * ys]);
-                for (k = 0; k <= nU; k++) pts.push([mw, k * ys]);
                 // diagonals meet at the vertex (one shared dot) and start far enough from the top corners
                 // that their first dots clear the uprights
                 var vx = mw / 2, vy = mh * 0.7, len = Math.hypot(vx, vy), L0 = sp * 1.6;
                 var nD = Math.max(1, Math.round((len - L0) / sp)), sd = (len - L0) / nD, j, L;
+                for (k = nU; k >= 0; k--) pts.push([0, k * ys]);
                 for (j = 0; j <= nD; j++) { L = L0 + j * sd; pts.push([vx * L / len, vy * L / len]); }
-                for (j = 0; j < nD; j++) { L = L0 + j * sd; pts.push([mw - vx * L / len, vy * L / len]); }
+                for (j = nD - 1; j >= 0; j--) { L = L0 + j * sd; pts.push([mw - vx * L / len, vy * L / len]); }
+                for (k = 0; k <= nU; k++) pts.push([mw, k * ys]);
                 mono.pts = [];
                 for (k = 0; k < pts.length; k++) mono.pts.push([ox + pts[k][0], oy + pts[k][1]]);
                 for (var h = 0; h < homeDots.length; h++) { homeDots[h].locked = false; if (h >= mono.pts.length) homeDots[h].home = -1; }
             }
 
-            function chooseMonogram() {
-                if (!box || homeDots.length) return;
-                var cands = [];
-                for (var i = 0; i < dots.length; i++) if (dots[i].ox < box.l + (box.r - box.l) * 0.45 && !dots[i].free && !dots[i].fall) cands.push(dots[i]);
-                for (var k = cands.length - 1; k > 0; k--) { var j = (Math.random() * (k + 1)) | 0; var tmp = cands[k]; cands[k] = cands[j]; cands[j] = tmp; }
-                for (var m = 0; m < mono.pts.length && m < cands.length; m++) {
-                    cands[m].home = m; cands[m].locked = false;
-                    homeDots.push(cands[m]);
-                }
+            function sendHome(d) {
+                d.home = homeDots.length; d.locked = false;
+                d.st = HOME; d.relT = t;
+                homeDots.push(d);
             }
 
             /* ---------- "hello" as a field of evenly spaced dots ---------- */
+            function makeDot(x, y, rippleSeed, extra) {
+                var d = { ox: x, oy: y, x: x, y: y, vx: 0, vy: 0, dirx: 1, diry: 0, st: REST, letter: false, free: false,
+                          relT: 0, home: -1, locked: false, fa: 1, delay: 0,
+                          press: 0, thresh: 0.025 + Math.pow(Math.random(), 1.6) * 0.26,
+                          noise: (fbm(x * 0.01, y * 0.01, 2, rippleSeed) - 0.5) * fontSize * 0.9 + rnd(-0.15, 0.15) * fontSize,
+                          col: PALETTE[(Math.random() * PALETTE.length) | 0], op: rnd(0.85, 1), rs: rnd(0.92, 1.08), dv: (Math.random() * 12) | 0,
+                          fall: 0, ph: Math.random() * 6.2832, w: rnd(0.35, 1.6), g: rnd(0.5, 1.6), slow: rnd(0.6, 1.8),
+                          k: rnd(0.5, 1.5), sens: rnd(0.2, 1.0), life: rnd(2.6, 5.2) };
+                for (var key in extra) d[key] = extra[key];
+                return d;
+            }
+
             function buildDots() {
-                fontSize = Math.min(W * (W < 600 ? 0.36 : 0.30), H * 0.40, 560);
+                fontSize = Math.min(W * (W <= 600 ? 0.36 : 0.30), H * 0.40, 560);
                 var font = '800 ' + fontSize + 'px Inter, "Helvetica Neue", Helvetica, Arial, sans-serif';
 
                 var tc = document.createElement('canvas'); tc.width = W; tc.height = H;
@@ -624,9 +702,8 @@
                 var cell = minD, gw = Math.ceil((rr - l) / cell) + 1, gh = Math.ceil((bt - tp) / cell) + 1;
                 var grid = new Int32Array(gw * gh); for (var g = 0; g < grid.length; g++) grid[g] = -1;
                 var attempts = Math.round((rr - l) * (bt - tp) / (minD * minD) * 30);
-                hitPad = Math.max(48, fontSize * 0.14);
 
-                dots = []; homeDots = [];
+                dots = []; homeDots = []; letterTotal = 0; cleared = 0; prog = 0;
                 for (var i = 0; i < attempts; i++) {
                     var x = l + Math.random() * (rr - l), y = tp + Math.random() * (bt - tp);
                     var idx = ((y | 0) * W + (x | 0)) * 4 + 3;
@@ -647,14 +724,9 @@
                     if (!ok) continue;
                     grid[gy * gw + gx] = dots.length;
                     var outside = a <= 0.5;
-                    dots.push({ ox: x, oy: y, x: x, y: y, vx: 0, vy: 0, dirx: 1, diry: 0,
-                                free: outside || Math.random() < 0.07,     // strays and a few wanderers drift more
-                                rel: false, relT: 0, home: -1, hold: 0, locked: false,
-                                noise: (fbm(x * 0.01, y * 0.01, 2, rippleSeed) - 0.5) * fontSize * 0.9 + rnd(-0.15, 0.15) * fontSize,
-                                col: PALETTE[(Math.random() * PALETTE.length) | 0], op: rnd(0.85, 1), rs: rnd(0.92, 1.08), dv: (Math.random() * 12) | 0,
-                                fall: 0,
-                                ph: Math.random() * 6.2832, w: rnd(0.35, 1.6), g: rnd(0.5, 1.6), slow: rnd(0.6, 1.8),
-                                k: rnd(0.5, 1.5), sens: rnd(0.2, 1.0), life: rnd(2.6, 5.2) });
+                    if (!outside) letterTotal++;
+                    // strays and a few wanderers drift more
+                    dots.push(makeDot(x, y, rippleSeed, { letter: !outside, free: outside || Math.random() < 0.07 }));
                 }
                 // the drizzle: a fixed pool of dots that fall from the underside of the letters, thin out,
                 // and start again from the top. They exist from the first frame, so the count never grows.
@@ -668,49 +740,107 @@
                 for (var f = 0; f < nFall && cols.length; f++) {
                     var col = cols[(Math.random() * cols.length) | 0];
                     var fx = col[0] + rnd(-1.5, 1.5), fy = col[1] - dotR * rnd(0, 4);
-                    dots.push({ ox: fx, oy: fy, x: fx, y: fy, vx: 0, vy: 0, dirx: 1, diry: 0, free: false,
-                                rel: false, relT: 0, home: -1, locked: false,
-                                noise: (fbm(fx * 0.01, fy * 0.01, 2, rippleSeed) - 0.5) * fontSize * 0.9 + rnd(-0.15, 0.15) * fontSize,
-                                col: PALETTE[(Math.random() * PALETTE.length) | 0], op: rnd(0.85, 1), rs: rnd(0.92, 1.08), dv: (Math.random() * 12) | 0,
-                                fall: 1, fallLen: fontSize * rnd(0.12, 0.45), fallSp: rnd(8, 22), prog: Math.random(), sway: rnd(1, 4),
-                                ph: Math.random() * 6.2832, w: rnd(0.35, 1.6), g: rnd(0.5, 1.6), slow: rnd(0.6, 1.8),
-                                k: rnd(0.5, 1.5), sens: rnd(0.2, 1.0), life: rnd(2.6, 5.2) });
+                    dots.push(makeDot(fx, fy, rippleSeed, { fall: 1, fallLen: fontSize * rnd(0.12, 0.45), fallSp: rnd(8, 22),
+                                                            prog: Math.random(), sway: rnd(1, 4) }));
                 }
             }
 
-            function inHello(x, y) {
-                return box && x > box.l - hitPad && x < box.r + hitPad && y > box.t - hitPad && y < box.b + hitPad;
+            /* ---------- the blower ---------- */
+            // The finger or cursor is a soft gust, not a blade. Its strength falls off smoothly with distance (a
+            // gaussian), so there is no rim: dots right under it are caught up and carried along ahead of the
+            // stroke, dots at the fringe only sway and settle back. Each dot has its own threshold for coming
+            // loose, so the cleared path is ragged. Loose dots keep feeling the gust while it is near, which banks
+            // them up softly in front of the stroke; once it passes they drift, slow and fade.
+            function blowerRadius() {
+                return brush.touch ? Math.max(18, fontSize * 0.14) : Math.max(18, fontSize * 0.105);
             }
 
-            /* ---------- ripple sources: wherever the finger or cursor goes, a new ripple starts ---------- */
-            function addSource(x, y) {
-                if (dotsT < 0) return;
-                if (trigT < 0) { trigT = t; chooseMonogram(); }
-                else if (t - trigT > GUST_WINDOW) return;
-                var lastS = sources[sources.length - 1];
-                if (lastS) {
-                    var ddx = x - lastS.x, ddy = y - lastS.y;
-                    if (ddx * ddx + ddy * ddy < fontSize * fontSize * 0.02 && t - lastS.t0 < 0.25) return;
+            function sweep(dt) {
+                if (!brush.on || dotsT < 0 || pointer.x < -1e8) return;
+                var x1 = pointer.x, y1 = pointer.y;
+                if (brush.fresh) { brush.px = x1; brush.py = y1; brush.vx = brush.vy = 0; brush.fresh = false; }
+                var x0 = brush.px, y0 = brush.py, mx = x1 - x0, my = y1 - y0;
+                var len = Math.sqrt(mx * mx + my * my), R = blowerRadius();
+                var kv = Math.min(1, dt * 14), inv = 1 / Math.max(dt, 0.008);
+                brush.vx += (mx * inv - brush.vx) * kv; brush.vy += (my * inv - brush.vy) * kv;
+                brush.px = x1; brush.py = y1;
+                if (len > R * 8) { x0 = x1; y0 = y1; mx = my = 0; len = 0; }   // a jump, not a stroke
+                var ux = len > 0.01 ? mx / len : 1, uy = len > 0.01 ? my / len : 0;
+                var Rmax = R * 2.2;
+                // quick reject: is the stroke anywhere near the word?
+                var minX = Math.min(x0, x1) - Rmax, maxX = Math.max(x0, x1) + Rmax;
+                var minY = Math.min(y0, y1) - Rmax, maxY = Math.max(y0, y1) + Rmax;
+                if (maxX < box.l - fontSize * 0.5 || minX > box.r + fontSize * 0.5 || maxY < box.t - fontSize * 0.6 || minY > box.b + fontSize * 0.7) return;
+                var homeChance = Math.min(1, mono.pts.length / Math.max(1, letterTotal * 0.4));
+                var speed = Math.sqrt(brush.vx * brush.vx + brush.vy * brush.vy);
+                var drive = Math.min(4, 0.5 + speed / 400);   // a quicker stroke blows harder
+                var inv2 = 1 / (R * R), L2 = len * len;
+                for (var i = 0; i < dots.length; i++) {
+                    var d = dots[i];
+                    if (d.st !== REST && d.st !== FLOW) continue;
+                    // nearest point on this frame's stroke, so a fast stroke can't skip over a dot
+                    var px = d.x - x0, py = d.y - y0;
+                    var u = L2 > 0 ? clamp((px * mx + py * my) / L2, 0, 1) : 0;
+                    var dx = px - mx * u, dy = py - my * u;
+                    if (dx > Rmax || dx < -Rmax || dy > Rmax || dy < -Rmax) continue;
+                    var dd = dx * dx + dy * dy;
+                    if (dd >= Rmax * Rmax) continue;
+                    var f = Math.exp(-dd * inv2);
+                    var dist = Math.sqrt(dd), nx = dist > 0.5 ? dx / dist : ux, ny = dist > 0.5 ? dy / dist : uy;
+                    // the gust drags dots along with the stroke (downwind), never shoves them sideways, so
+                    // nothing lines up along the sides of the path; loose dots fan out a touch
+                    var side = d.st === FLOW ? 25 * drive * d.sens : 0;
+                    var tvx = brush.vx * 0.85 + nx * side, tvy = brush.vy * 0.85 + ny * side;
+                    var k = Math.min(1, f * dt * 9);
+                    d.vx += (tvx - d.vx) * k; d.vy += (tvy - d.vy) * k;
+                    if (d.st === REST) {
+                        d.press += f * dt * drive;
+                        if (d.press >= d.thresh) {
+                            started = true;
+                            if (d.letter) cleared++;
+                            if (d.letter && homeDots.length < mono.pts.length && Math.random() < homeChance) { sendHome(d); continue; }
+                            d.st = FLOW; d.relT = t; d.life = rnd(1.1, 2.2); d.fa = Math.max(d.fa, 0.6);
+                        }
+                    } else if (f > 0.3) {
+                        d.relT = Math.max(d.relT, t - d.life * 0.3);   // still in the gust: hold off its fade
+                    }
                 }
-                if (sources.length >= 80) sources.splice(1, 1);
-                sources.push({ x: x, y: y, t0: t });
             }
-            function trigger(x, y) { addSource(x, y); }
 
-            // has any ripple reached this point yet? returns the source that did
-            function reached(x, y, noise, speed, pause) {
-                for (var i = 0; i < sources.length; i++) {
-                    var s = sources[i], r = (t - s.t0 - pause) * speed + noise;
-                    if (r <= 0) continue;
-                    var dx = x - s.x, dy = y - s.y;
-                    if (dx * dx + dy * dy < r * r) return s;
+            // a dot still standing lets go by itself: it rides a breeze off to the right, away from the word
+            function release(d) {
+                if (d.letter) cleared++;
+                d.st = BLOW; d.relT = t; d.life = rnd(2.2, 4.4);
+                var cx0 = (box.l + box.r) / 2, cy0 = (box.t + box.b) / 2;
+                var ax = d.x - cx0, ay = d.y - cy0, al = Math.sqrt(ax * ax + ay * ay) + 1;
+                var ang = Math.atan2(ay / al * 0.7 - 0.25, ax / al * 0.7 + 0.8) + rnd(-0.5, 0.5);
+                d.dirx = Math.cos(ang); d.diry = Math.sin(ang);
+            }
+
+            // past the halfway mark: everything still standing lets go, patch by patch, over a few seconds
+            function finish() {
+                if (finishT >= 0) return;
+                if (dotsT < 0) { wantFinish = true; return; }
+                finishT = t; started = true;
+                var spare = [];
+                for (var i = 0; i < dots.length; i++) {
+                    var d = dots[i];
+                    if (d.st !== REST) continue;
+                    d.delay = 0.1 + clamp(d.noise / fontSize + 0.6, 0, 1.2) * 1.2 + rnd(0, 0.4);
+                    if (d.letter) spare.push(d);
                 }
-                return null;
+                // any part of the M not drawn yet is finished now
+                while (homeDots.length < mono.pts.length && spare.length) {
+                    sendHome(spare.splice((Math.random() * spare.length) | 0, 1)[0]);
+                }
+                for (var c = 0; c < clouds.length; c++) if (!clouds[c].rel) clouds[c].relAt = t + rnd(0.1, 1.4);
             }
 
             /* ---------- drawing ---------- */
             function drawSky(dt) {
-                var L = trigT < 0 ? 0 : ease(clamp((t - trigT - SKY_FADE_DELAY) / SKY_FADE_SECONDS, 0, 1));
+                var target = finishT >= 0 ? 1 : SKY_BEFORE * smooth(0.03, FINISH_AT, prog);
+                if (skyL < target) skyL = Math.min(target, skyL + dt * (finishT >= 0 ? 0.3 : 0.6));
+                var L = ease(skyL);
                 ctx.clearRect(0, 0, W, H);
                 if (L !== lastL && !settled) {
                     setSky(mix3(SKY_TOP0, SKY_END, L), mix3(SKY_MID0, SKY_END, L), mix3(SKY_BOT0, SKY_END, L));
@@ -718,21 +848,18 @@
                 }
                 ctx.imageSmoothingEnabled = true;
                 ctx.imageSmoothingQuality = 'high';
-                var alive = 0, cloudSpeed = Math.max(W, H) / 2.4;
+                var alive = 0;
                 for (var i = 0; i < clouds.length; i++) {
                     var c = clouds[i];
                     if (c.dead) continue;
                     var a = c.alpha, sc = 1;
-                    c.x += c.drift * dt;
+                    c.x += c.drift * dt * (1 + 2.5 * loosen);
                     if (!c.rel) {
                         if (c.x > W + 20) c.x = -c.w - 20;
-                        if (trigT >= 0) {
-                            var s = reached(c.x + c.w / 2, c.y + c.h / 2, c.noise, cloudSpeed, 0.3);
-                            if (s) {
-                                c.rel = true; c.relT = t;
-                                var ang = Math.atan2(c.y + c.h / 2 - s.y, c.x + c.w / 2 - s.x) + rnd(-0.35, 0.35);
-                                c.dirx = Math.cos(ang); c.diry = Math.sin(ang);
-                            }
+                        if (c.relAt >= 0 && t >= c.relAt) {
+                            c.rel = true; c.relT = t;
+                            var ang = Math.atan2(c.y + c.h / 2 - H / 2, c.x + c.w / 2 - W / 2) + rnd(-0.35, 0.35);
+                            c.dirx = Math.cos(ang); c.diry = Math.sin(ang);
                         }
                     }
                     if (c.rel) {
@@ -756,7 +883,7 @@
                     ctx.drawImage(c.cv, cxp - w / 2, cyp - h / 2, w, h);
                 }
                 ctx.globalAlpha = 1;
-                return { L: L, alive: alive };
+                return { alive: alive };
             }
 
             function drawDots(dt) {
@@ -764,52 +891,50 @@
                 var appear = smooth(0, 1.6, t - dotsT);
                 var windR = fontSize * 0.42;
                 var driftSpeed = dotR * 1.35;
-                var rippleSpeed = fontSize * 1.1;
                 var alive = 0;
                 pointer.vx *= Math.max(0, 1 - dt * 4); pointer.vy *= Math.max(0, 1 - dt * 4);
                 var pspeed = Math.sqrt(pointer.vx * pointer.vx + pointer.vy * pointer.vy);
                 var pstr = Math.min(1, pspeed / 600), pwx = 0, pwy = 0;
                 if (pspeed > 1) { pwx = pointer.vx / pspeed * pstr; pwy = pointer.vy / pspeed * pstr; }
+                // near the halfway mark a few dots come free on their own, more and more of them
+                var spont = finishT >= 0 ? 0 : 0.12 * Math.pow(smooth(LOOSE_FROM, FINISH_AT, prog), 2);
                 var list = settled ? homeDots : dots;
                 for (var i = 0; i < list.length; i++) {
                     var d = list[i], a = appear * d.op, r = dotR * d.rs;
-                    if (!d.rel && trigT >= 0) {
-                        var s = reached(d.x, d.y, d.noise, rippleSpeed, 0);
-                        if (s) {
-                            d.rel = true; d.relT = t;
-                            var dx0 = d.x - s.x, dy0 = d.y - s.y;
-                            var ang = (dx0 * dx0 + dy0 * dy0 < 1) ? Math.random() * 6.2832 : Math.atan2(dy0, dx0) + rnd(-0.3, 0.3);
-                            d.dirx = Math.cos(ang); d.diry = Math.sin(ang);
-                        }
-                    }
-                    if (!d.rel && d.fall) {
+                    if (d.st === GONE) continue;
+
+                    if (d.st === REST && ((finishT >= 0 && t - finishT >= d.delay) || (spont > 0 && Math.random() < spont * dt))) release(d);
+
+                    if (d.st === REST && d.fall) {
                         // drizzle: slide down, thin out near the end of the trail, start again from the top
                         d.prog += d.fallSp * dt / d.fallLen;
                         if (d.prog >= 1) d.prog -= 1;
                         d.x = d.ox + Math.sin(d.prog * 9 + d.ph) * d.sway * d.prog;
                         d.y = d.oy + d.prog * d.fallLen;
                         var fade = smooth(0, 0.08, d.prog) * (1 - smooth(0.55, 1, d.prog));
+                        d.fa = fade;
                         a *= fade; r *= 1 - 0.45 * d.prog;
                         alive++;
                         daub(d, d.x, d.y, r, a);
                         continue;
                     }
-                    if (!d.rel) {
-                        // at rest: a slow current carries each dot a little, a soft spring keeps it home
+
+                    if (d.st === REST) {
+                        // at rest: a slow current carries each dot a little, a soft spring keeps it home.
+                        // As the word nears its end the spring weakens and the dots start to stir.
                         var fx = (vnoise(d.x * 0.006 + t * 0.05, d.y * 0.006, 5) - 0.5) * 2;
                         var fy = (vnoise(d.x * 0.006, d.y * 0.006 + t * 0.045, 9) - 0.5) * 2;
-                        var sp = d.free ? driftSpeed * 5 : driftSpeed;
-                        var spring = d.free ? 0.3 : 0.9;
+                        var sp = (d.free ? driftSpeed * 5 : driftSpeed) * (1 + 2.5 * loosen);
+                        var spring = (d.free ? 0.3 : 0.9) * (1 - 0.5 * loosen);
                         var ax = fx * sp * 1.1 + (d.ox - d.x) * spring;
                         var ay = fy * sp * 1.1 + (d.oy - d.y) * spring;
-                        // the cursor's motion is a breath of wind
-                        var pdx = d.x - pointer.x, pdy = d.y - pointer.y, pd = Math.sqrt(pdx * pdx + pdy * pdy);
-                        if (pd < windR && pspeed > 20) {
-                            var f = 1 - pd / windR; f = f * f * d.sens;
-                            var flutter = (vnoise(d.x * 0.05 + t * 3, d.y * 0.05, 33) - 0.5) * 2;
-                            ax += pwx * f * 55 + flutter * f * 260 + pdx / (pd + 1) * f * 12;
-                            ay += pwy * f * 55 - flutter * f * 180 + pdy / (pd + 1) * f * 12;
+                        if (loosen > 0) {
+                            // a slow sway, not a shiver
+                            var jit = loosen * dotR * 12;
+                            ax += (vnoise(d.ox * 0.02 + t * 0.5, d.oy * 0.02, 71) - 0.5) * 2 * jit;
+                            ay += (vnoise(d.ox * 0.02, d.oy * 0.02 + t * 0.45, 73) - 0.5) * 2 * jit;
                         }
+                        d.press *= Math.exp(-dt * 0.8);   // a dot only half-blown slowly recovers
                         d.vx += ax * dt; d.vy += ay * dt;
                         var damp = Math.max(0, 1 - dt * 2.2);
                         d.vx *= damp; d.vy *= damp;
@@ -818,15 +943,17 @@
                         daub(d, d.x, d.y, r, a);
                         continue;
                     }
-                    var e = t - d.relT;
-                    if (d.home >= 0 && d.home < mono.pts.length) {
-                        // one of the chosen few: blown for a moment, then it curves to its place in the corner
+
+                    if (d.st === HOME && !(d.home >= 0 && d.home < mono.pts.length)) release(d);
+                    if (d.st === HOME) {
+                        // one of the chosen few: it curves straight to its place in the corner
+                        var e0 = t - d.relT;
                         var tp = mono.pts[d.home], tgt = [tp[0] - (window.scrollX || 0), tp[1] - (window.scrollY || 0)];
                         if (d.locked) { daub(d, tgt[0], tgt[1], mono.r, 1); continue; }
                         var tx = tgt[0] - d.x, ty = tgt[1] - d.y, td = Math.sqrt(tx * tx + ty * ty);
                         // speed grows with distance and eases off on approach; the step is capped at the
                         // remaining distance so a dot can never pass its mark and swing back
-                        var hs = Math.min(360, 30 + td * 2.0) * smooth(0, 0.6, e);
+                        var hs = Math.min(360, 30 + td * 2.0) * smooth(0, 0.6, e0);
                         var k2 = Math.min(1, dt * 6);
                         d.vx += (tx / (td + 0.01) * hs - d.vx) * k2;
                         d.vy += (ty / (td + 0.01) * hs - d.vy) * k2;
@@ -837,10 +964,25 @@
                         daub(d, d.x, d.y, rr2, 1);
                         continue;
                     }
-                    if (e >= d.life) continue;
-                    blow(d, e, dt);
-                    a *= 1 - smooth(0.3, 1, e / d.life);
-                    r *= 1 + e * 0.05;
+
+                    var e = t - d.relT;
+                    if (e >= d.life) { d.st = GONE; continue; }
+
+                    if (d.st === FLOW) {
+                        // blown loose: glides on, slows, rides a slow smooth breeze (no per-frame noise, so
+                        // no jitter) and thins out
+                        var drag = Math.exp(-dt * 2.6);
+                        d.vx *= drag; d.vy *= drag;
+                        d.vx += ((vnoise(d.x * 0.004 + t * 0.15, d.y * 0.004, 51) - 0.5) * 50 + 8) * dt;
+                        d.vy += ((vnoise(d.x * 0.004, d.y * 0.004 + t * 0.15, 53) - 0.5) * 50 - 4) * dt;
+                        d.x += d.vx * dt; d.y += d.vy * dt;
+                        a *= Math.max(d.fa, 0.6) * (1 - smooth(0.35, 1, e / d.life));
+                        r *= 1 - 0.2 * e / d.life;
+                    } else {
+                        blow(d, e, dt);
+                        a *= Math.max(d.fa, 0.5) * (1 - smooth(0.3, 1, e / d.life));
+                        r *= 1 + e * 0.05;
+                    }
                     alive++;
                     if (d.x < -20 || d.x > W + 20 || d.y < -20 || d.y > H + 20) continue;
                     daub(d, d.x, d.y, r, a);
@@ -849,7 +991,7 @@
                 return alive;
             }
 
-            // carried away from the ripple that released it, inside a gusty wind every dot feels differently
+            // carried away from the word, inside a gusty wind every dot feels differently
             function blow(d, e, dt) {
                 var ramp = smooth(0, 1.3 * d.slow, e);
                 var gs = (25 + 120 * ramp) * d.w;
@@ -867,9 +1009,16 @@
                 d.x += d.vx * dt; d.y += d.vy * dt;
             }
 
+            function setReveal(v) {
+                if (Math.abs(v - revealA) < 0.004) return;
+                revealA = v;
+                rootStyle.setProperty('--reveal', v.toFixed(3));
+            }
+
             function reveal() {
                 if (revealed) return;
                 revealed = true;
+                brush.on = false;
                 document.body.classList.remove('intro');
                 canvas.className = 'behind';
             }
@@ -881,16 +1030,14 @@
                 reveal();
                 document.body.classList.remove('sky-live');
                 rootStyle.removeProperty('--sky-top'); rootStyle.removeProperty('--sky-mid'); rootStyle.removeProperty('--sky-bot');
+                rootStyle.removeProperty('--reveal');
                 if (themeMeta && !document.body.classList.contains('sunny')) themeMeta.content = rgb(SKY_END);
-                sources = [];
                 if (!homeDots.length) { canvas.parentNode.removeChild(canvas); }
             }
 
             function frame(now) {
                 var dt = last ? Math.min(0.05, (now - last) / 1000) : 0.016;
                 last = now; t += dt;
-
-                if (trigT < 0 && hoverT >= 0 && t - hoverT > HOVER_SECONDS) trigger(pointer.x, pointer.y);
 
                 if (settled) {
                     if (!canvas.parentNode) return;
@@ -899,10 +1046,19 @@
                     requestAnimationFrame(frame);
                     return;
                 }
+                if (!revealed) sweep(dt);
+                // how much of the word is gone, eased so the culmination builds smoothly
+                var raw = letterTotal ? cleared / letterTotal : 0;
+                // (slow on purpose: even one big swipe past halfway gets a beat of stirring before it all goes)
+                if (raw > prog) prog += Math.min(raw - prog, Math.max((raw - prog) * dt * 2.5, dt * 0.08));
+                loosen = finishT >= 0 ? 1 : smooth(STIR_FROM, FINISH_AT, prog);
+                if (finishT < 0 && dotsT >= 0 && prog >= FINISH_AT) finish();
+
                 var sky = drawSky(dt);
                 var dotsAlive = drawDots(dt);
-                if (!revealed && trigT >= 0 && t - trigT > REVEAL_AFTER) reveal();
-                if (revealed && sky.L >= 1 && dotsAlive === 0 && sky.alive === 0) settle();
+                if (!revealed) setReveal(TEXT_BEFORE * smooth(0.3, FINISH_AT, prog));
+                if (!revealed && finishT >= 0 && t - finishT > REVEAL_AFTER) reveal();
+                if (revealed && skyL >= 1 && dotsAlive === 0 && sky.alive === 0) settle();
                 requestAnimationFrame(frame);
             }
 
@@ -918,11 +1074,11 @@
             window.addEventListener('resize', function() {
                 clearTimeout(resizeTimer);
                 resizeTimer = setTimeout(function() {
-                    var oldW = W, oldH = H;
+                    var oldW = W;
                     size();
                     buildMonogram();
                     // a height-only change (a phone's toolbar hiding) must not respawn anything
-                    if (trigT < 0 && Math.abs(W - oldW) > 2) {
+                    if (!started && Math.abs(W - oldW) > 2) {
                         buildClouds();
                         if (fontReady) buildDots();
                     }
@@ -938,18 +1094,28 @@
                 }
                 pointer.t = now;
                 pointer.x = e.clientX; pointer.y = e.clientY;
-                if (trigT >= 0) { addSource(e.clientX, e.clientY); return; }
-                if (e.pointerType !== 'mouse') return;
-                if (inHello(e.clientX, e.clientY)) { if (hoverT < 0) hoverT = t; }
-                else hoverT = -1;
+                // a mouse wipes just by moving over the word; a finger or pen wipes while it is down
+                if (e.pointerType === 'mouse' && !brush.on && !revealed) { brush.on = true; brush.touch = false; brush.fresh = true; }
             }
             canvas.addEventListener('pointermove', onMove);
-            canvas.addEventListener('pointerleave', function() { hoverT = -1; pointer.x = pointer.y = -1e9; pointer.vx = pointer.vy = 0; pointer.t = 0; });
             canvas.addEventListener('pointerdown', function(e) {
-                pointer.x = e.clientX; pointer.y = e.clientY;
-                if (trigT >= 0 || inHello(e.clientX, e.clientY)) trigger(e.clientX, e.clientY);
+                pointer.x = e.clientX; pointer.y = e.clientY; pointer.t = performance.now();
+                pointer.vx = pointer.vy = 0;
+                if (revealed) return;
+                brush.on = true; brush.touch = e.pointerType !== 'mouse'; brush.fresh = true;
+                sweep(0.016);   // the dots under the finger move on the very first frame
+            });
+            function lift(e) { if (e.pointerType !== 'mouse') brush.on = false; }
+            canvas.addEventListener('pointerup', lift);
+            canvas.addEventListener('pointercancel', lift);
+            canvas.addEventListener('pointerleave', function() {
+                brush.on = false;
+                pointer.x = pointer.y = -1e9; pointer.vx = pointer.vy = 0; pointer.t = 0;
             });
             canvas.addEventListener('touchmove', function(e) { e.preventDefault(); }, { passive: false });
+            // scrolling or pressing a key means "let me read": the word lets go on its own
+            window.addEventListener('wheel', function() { if (!revealed) finish(); }, { passive: true });
+            window.addEventListener('keydown', function() { if (!revealed) finish(); });
 
             /* ---------- go ---------- */
             setSky(SKY_TOP0, SKY_MID0, SKY_BOT0);
@@ -963,6 +1129,7 @@
                 if (fontReady) return;
                 if (W < 2 || H < 2) { setTimeout(onFont, 200); return; }
                 fontReady = true; buildDots(); dotsT = t;
+                if (wantFinish) finish();
             }
             if (document.fonts && document.fonts.load) {
                 document.fonts.load('800 40px Inter').then(onFont, onFont);
@@ -1010,6 +1177,15 @@
             var shuffledItems = shuffle(resumeItems.slice());
             var currentIndex = 0;
 
+            // keep the list's bottom padding equal to the footer's real height (it grows when the input appears)
+            var footer = document.querySelector('.footer');
+            function measureFooter() {
+                document.documentElement.style.setProperty('--footer-h', footer.offsetHeight + 'px');
+            }
+            measureFooter();
+            if ('ResizeObserver' in window) new ResizeObserver(measureFooter).observe(footer);
+            else window.addEventListener('resize', measureFooter);
+
             var themeToggle = document.getElementById('theme-toggle');
             var themeMeta = document.querySelector('meta[name="theme-color"]');
             themeToggle.onclick = function() {
@@ -1031,7 +1207,7 @@
                 newItem.className = 'item';
                 newItem.textContent = text;
                 previouslySection.appendChild(newItem);
-                window.scrollTo(0, document.body.scrollHeight);
+                window.scrollTo({ top: document.documentElement.scrollHeight, behavior: 'smooth' });
             }
 
             function addCustomItem() {
